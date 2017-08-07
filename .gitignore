@@ -1,0 +1,65 @@
+# Project
+local.py
+media/
+/static/
+
+# Tests
+.coverage
+htmlcov
+backend-coverage
+.tox
+
+# Vagrant
+.vagrant
+setup.retry
+
+# Django
+*.egg-info
+*.pot
+*.py[co]
+*.log
+.tox/
+__pycache__
+MANIFEST
+dist/
+docs/_build/
+docs/locale/
+node_modules/
+tests/coverage_html/
+tests/.coverage
+tests/report/
+
+# PyCharm
+.idea
+
+# macOS
+*.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+.AppleDB
+.AppleDesktop
+Network Trash Folder
+Temporary Items
+.apdisk
+.cache
+
+### Tests ###
+.coverage
+htmlcov
+coverage
+.tox
+coverage.xml
+junit*.xml
+
+# celery
+celerybeat-schedule.db
+celerybeat-schedule

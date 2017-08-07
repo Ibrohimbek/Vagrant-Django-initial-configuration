@@ -1,0 +1,117 @@
+---
+- hosts: all
+  sudo: yes
+  vars:
+    project_name: aiag_inspection
+    username: vagrant
+    home_dir: "/home/{{ username}}/"
+    project_dir: "{{ home_dir }}{{ project_name }}/"
+    deployment_dir: "{{ project_dir }}deployment/dev/"
+    pgsql_version: 9.3
+    pgsql_db_name: "{{ project_name }}"
+    python_version: 3.5
+    venvs_dir: "{{ home_dir }}envs/"
+    venv_name: "{{ project_name }}"
+    venv_dir: "{{ venvs_dir }}{{ venv_name }}"
+    reqs_path: "{{ project_dir }}requirements/dev.txt"
+
+  pre_tasks:
+    - name: install python2
+      raw: sudo apt-get -y install python-simplejson
+  tasks:
+    - name: Install required packages
+      sudo: yes
+      apt: pkg={{ item }} state=latest update_cache=yes
+      with_items:
+        - git
+        - build-essential
+        - libffi-dev
+        - g++
+        - libssl-dev
+        - python-dev
+        - python3-dev
+        - python-pip
+        - shared-mime-info
+        - lib32z1-dev
+        - libjpeg-dev
+        - libpq-dev
+        - libcairo2
+        - libpango1.0-0
+        - libgdk-pixbuf2.0-0
+        - libffi-dev
+        - libxml2-dev
+        - libxslt1-dev
+        - rabbitmq-server
+        - postgresql-9.3
+
+    - name: update pgsql config
+      sudo: yes
+      template: src=pg_hba.conf dest=/etc/postgresql/{{ pgsql_version }}/main/
+
+    - name: restart pgsql
+      sudo: yes
+      service: name=postgresql state=restarted
+
+    - name: create pgsql db
+      action: shell createdb -Upostgres {{ pgsql_db_name }}
+      ignore_errors: yes
+
+    - name: install virtualenvwrapper
+      sudo: yes
+      pip: name=virtualenvwrapper
+
+    - name: copy bashrc
+      template: src=bashrc dest={{ home_dir }}bashrc
+
+    - name: update bashrc
+      lineinfile:
+        dest={{ home_dir }}bashrc
+        line="export WORKON_HOME={{ venvs_dir }}"
+        regexp="^export WORKON_HOME"
+
+    - name: update bashrc
+      lineinfile:
+        dest={{ home_dir }}bashrc
+        line="source /usr/local/bin/virtualenvwrapper.sh"
+        regexp="^source \/usr\/local\/bin\/virtualenvwrapper\.sh"
+
+    - name: create virtualenv
+      shell: >
+        executable=/bin/bash
+        export WORKON_HOME={{ venvs_dir }} && source /usr/local/bin/virtualenvwrapper.sh && mkvirtualenv {{ venv_name }} -p /usr/bin/python3
+      register: run_cmd
+
+    - debug: var=run_cmd.stdout_lines
+
+    - name: update bashrc
+      lineinfile:
+        dest={{ home_dir }}bashrc
+        line="workon {{ venv_name }}"
+        regexp="^workon "
+
+    - name: add APNS_CERTIFICATE_FILEPATH variable
+      lineinfile:
+        dest={{ home_dir }}bashrc
+        line="export APNS_CERTIFICATE_FILEPATH='/home/vagrant/aiag-inspection/apns-certificate.pem'"
+        regexp="^export APNS_CERTIFICATE_FILEPATH"
+
+    - name: copy project dir into .project
+      shell: >
+        executable=/bin/bash
+        echo "{{ project_dir }}" > {{ venv_dir }}/.project
+
+    - name: install requirements
+      shell: >
+        executable=/bin/bash
+        {{ venv_dir }}/bin/pip install -r {{ reqs_path }}
+      register: run_cmd
+
+    - debug: var=run_cmd.stdout_lines
+
+    - name: create logs folder
+      file: path={{ home_dir }}logs state=directory owner={{ username }} group={{ username }}
+
+    - name: run migrations
+      shell: >
+        executable=/bin/bash
+        export APNS_CERTIFICATE_FILEPATH='' && {{ venv_dir }}/bin/python {{ project_dir }}manage.py migrate --noinput
